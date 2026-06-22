@@ -1,231 +1,107 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 
-# =========================
+# ==================================
 # CONFIG
-# =========================
+# ==================================
 st.set_page_config(
-    page_title="FIFA World Cup 2026 Dashboard",
+    page_title="FIFA World Cup 2026",
     page_icon="⚽",
     layout="wide"
 )
 
-# =========================
+# ==================================
 # LOAD DATA
-# =========================
+# ==================================
 @st.cache_data
 def load_data():
-    df = pd.read_csv("fifa_world_cup_2026_player_performance.csv")
-    df["match_date"] = pd.to_datetime(df["match_date"])
-    return df
+    return pd.read_csv(
+        "fifa_world_cup_2026_player_performance.csv",
+        low_memory=False
+    )
 
 df = load_data()
 
-# =========================
+# ==================================
 # TITLE
-# =========================
-st.title("⚽ FIFA World Cup 2026 Player Performance Dashboard")
-st.markdown("Analisis performa pemain selama turnamen.")
+# ==================================
+st.title("⚽ FIFA World Cup 2026 Dashboard")
 
-# =========================
-# SIDEBAR FILTER
-# =========================
-st.sidebar.header("Filter")
+# ==================================
+# FILTER
+# ==================================
+teams = sorted(df["team"].unique())
 
-teams = sorted(df["team"].dropna().unique())
-positions = sorted(df["position"].dropna().unique())
-
-selected_team = st.sidebar.multiselect(
+selected_team = st.selectbox(
     "Pilih Tim",
-    teams,
-    default=teams[:5]
+    ["Semua"] + teams
 )
 
-selected_position = st.sidebar.multiselect(
-    "Pilih Posisi",
-    positions,
-    default=positions
-)
+if selected_team != "Semua":
+    df = df[df["team"] == selected_team]
 
-filtered_df = df[
-    (df["team"].isin(selected_team)) &
-    (df["position"].isin(selected_position))
-]
-
-# =========================
+# ==================================
 # KPI
-# =========================
-st.subheader("📊 Ringkasan")
-
+# ==================================
 col1, col2, col3, col4 = st.columns(4)
 
-col1.metric(
-    "Jumlah Pemain",
-    filtered_df["player_name"].nunique()
-)
-
-col2.metric(
-    "Total Goal",
-    int(filtered_df["goals"].sum())
-)
-
-col3.metric(
-    "Total Assist",
-    int(filtered_df["assists"].sum())
-)
-
-col4.metric(
-    "Rata-rata Rating",
-    round(filtered_df["player_rating"].mean(), 2)
-)
-
-# =========================
-# TOP PLAYER
-# =========================
-st.subheader("🏆 Top 10 Player berdasarkan Tournament Rating")
-
-top_players = (
-    filtered_df.groupby(["player_name", "team"], as_index=False)
-    .agg({
-        "tournament_rating": "mean",
-        "goals": "sum",
-        "assists": "sum"
-    })
-    .sort_values("tournament_rating", ascending=False)
-    .head(10)
-)
-
-fig_top = px.bar(
-    top_players,
-    x="player_name",
-    y="tournament_rating",
-    color="team",
-    title="Top 10 Tournament Rating"
-)
-
-st.plotly_chart(fig_top, use_container_width=True)
-
-# =========================
-# GOAL VS ASSIST
-# =========================
-st.subheader("⚽ Goal vs Assist")
-
-player_stats = (
-    filtered_df.groupby(["player_name", "team"], as_index=False)
-    .agg({
-        "goals": "sum",
-        "assists": "sum",
-        "player_rating": "mean"
-    })
-)
-
-fig_scatter = px.scatter(
-    player_stats,
-    x="goals",
-    y="assists",
-    size="player_rating",
-    color="team",
-    hover_name="player_name",
-    title="Perbandingan Goal dan Assist"
-)
-
-st.plotly_chart(fig_scatter, use_container_width=True)
-
-# =========================
-# TEAM PERFORMANCE
-# =========================
-st.subheader("🌍 Performa Tim")
-
-team_stats = (
-    filtered_df.groupby("team", as_index=False)
-    .agg({
-        "goals": "sum",
-        "assists": "sum",
-        "player_rating": "mean"
-    })
-    .sort_values("goals", ascending=False)
-)
-
-fig_team = px.bar(
-    team_stats,
-    x="team",
-    y="goals",
-    color="player_rating",
-    title="Total Goal per Tim"
-)
-
-st.plotly_chart(fig_team, use_container_width=True)
-
-# =========================
-# POSITION ANALYSIS
-# =========================
-st.subheader("📌 Analisis Posisi")
-
-position_stats = (
-    filtered_df.groupby("position", as_index=False)
-    .agg({
-        "goals": "sum",
-        "assists": "sum",
-        "player_rating": "mean"
-    })
-)
-
-fig_position = px.bar(
-    position_stats,
-    x="position",
-    y="player_rating",
-    color="position",
-    title="Rata-rata Rating per Posisi"
-)
-
-st.plotly_chart(fig_position, use_container_width=True)
-
-# =========================
-# PLAYER DETAIL
-# =========================
-st.subheader("🔍 Detail Pemain")
-
-players = sorted(filtered_df["player_name"].unique())
-
-selected_player = st.selectbox(
-    "Pilih Pemain",
-    players
-)
-
-player_df = filtered_df[
-    filtered_df["player_name"] == selected_player
-]
-
-col1, col2 = st.columns(2)
-
 with col1:
-    st.metric("Goal", int(player_df["goals"].sum()))
-    st.metric("Assist", int(player_df["assists"].sum()))
-    st.metric("Rating", round(player_df["player_rating"].mean(), 2))
+    st.metric(
+        "Jumlah Pemain",
+        df["player_name"].nunique()
+    )
 
 with col2:
     st.metric(
-        "Minutes Played",
-        int(player_df["minutes_played"].sum())
+        "Total Goal",
+        int(df["goals"].sum())
     )
+
+with col3:
     st.metric(
-        "Tournament Rating",
-        round(player_df["tournament_rating"].mean(), 2)
+        "Total Assist",
+        int(df["assists"].sum())
     )
 
-st.dataframe(player_df)
+with col4:
+    st.metric(
+        "Rata-rata Rating",
+        round(df["player_rating"].mean(), 2)
+    )
 
-# =========================
-# DOWNLOAD
-# =========================
-st.subheader("⬇️ Download Data")
+# ==================================
+# TOP SCORER
+# ==================================
+st.subheader("🏆 Top Scorer")
 
-csv = filtered_df.to_csv(index=False).encode("utf-8")
+top_scorer = (
+    df.groupby("player_name")["goals"]
+    .sum()
+    .sort_values(ascending=False)
+    .head(10)
+)
 
-st.download_button(
-    label="Download Filtered Data",
-    data=csv,
-    file_name="filtered_player_performance.csv",
-    mime="text/csv"
+st.bar_chart(top_scorer)
+
+# ==================================
+# TEAM GOALS
+# ==================================
+st.subheader("🌍 Goal per Tim")
+
+team_goals = (
+    df.groupby("team")["goals"]
+    .sum()
+    .sort_values(ascending=False)
+)
+
+st.bar_chart(team_goals)
+
+# ==================================
+# DATA TABLE
+# ==================================
+st.subheader("📋 Data Pemain")
+
+st.dataframe(
+    df,
+    use_container_width=True
 )
